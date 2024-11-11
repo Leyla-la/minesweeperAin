@@ -143,7 +143,7 @@ class Sentence():
 
         # If cell is in the sentence, remove it, but do not decrement count
         if cell in self.cells:
-            self.cells.dis(cell)
+            self.cells.remove(cell)
 
 
 class MinesweeperAI():
@@ -304,12 +304,10 @@ class MinesweeperAI():
         """
 
         # Get set of safe cells that are not moves already done:
-        safe_moves = self.safes - self.moves_made
+        ssafe_moves = self.safes - self.moves_made
         if safe_moves:
             print('Making a Safe Move! Safe moves available: ', len(safe_moves))
-            return random.choice(list(safe_moves))
-
-        # Otherwise no guaranteed safe moves can be made
+            return next(iter(safe_moves))
         return None
 
     def make_random_move(self):
