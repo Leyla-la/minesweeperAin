@@ -143,7 +143,7 @@ class Sentence():
 
         # If cell is in the sentence, remove it, but do not decrement count
         if cell in self.cells:
-            self.cells.remove(cell)
+            self.cells.dis(cell)
 
 
 class MinesweeperAI():
