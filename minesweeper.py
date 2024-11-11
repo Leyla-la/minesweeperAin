@@ -174,16 +174,17 @@ class MinesweeperAI():
             1) mark the cell as a move that has been made
             2) mark the cell as safe
             3) add a new sentence to the AI's knowledge base
-               based on the value of `cell` and `count`
+            based on the value of `cell` and `count`
             4) mark any additional cells as safe or as mines
-               if it can be concluded based on the AI's knowledge base
+            if it can be concluded based on the AI's knowledge base
             5) add any new sentences to the AI's knowledge base
-               if they can be inferred from existing knowledge
+            if they can be inferred from existing knowledge
         """
+        # 1) Mark the cell as a move made and mark it as safe
         self.moves_made.add(cell)
         self.mark_safe(cell)
 
-        # Calculate neighboring cells
+        # 2) Calculate neighboring cells
         neighbors = {
             (i, j)
             for i in range(max(0, cell[0]-1), min(self.height, cell[0]+2))
@@ -191,34 +192,54 @@ class MinesweeperAI():
             if (i, j) != cell
         }
 
-        # Identify already known mines and adjust count
+        # 3) Identify already known mines and adjust count
         mine_neighbors = neighbors & self.mines
         count -= len(mine_neighbors)
         unknown_cells = neighbors - self.safes - self.mines
 
+        # 4) Add new sentence to the knowledge base and print it
         if unknown_cells:
-            self.knowledge.append(Sentence(unknown_cells, count))
+            new_sentence = Sentence(unknown_cells, count)
+            self.knowledge.append(new_sentence)
+            print(f"Move on cell: {cell} has added sentence to knowledge {new_sentence.cells} = {new_sentence.count}")
 
+        # 5) Iteratively mark mines and safes, and infer new knowledge
         while True:
             knowledge_changed = False
 
+            # Check each sentence for known mines or safes
             for sentence in self.knowledge:
                 new_mines = sentence.known_mines() - self.mines
                 new_safes = sentence.known_safes() - self.safes
 
+                # Mark new mines
                 if new_mines:
                     knowledge_changed = True
                     for mine in new_mines:
                         self.mark_mine(mine)
+                    print("New Mines Identified: ", new_mines)
 
+                # Mark new safes
                 if new_safes:
                     knowledge_changed = True
                     for safe in new_safes:
                         self.mark_safe(safe)
+                    print("New Safe Cells Identified: ", new_safes)
 
-            # Clean up empty sentences
+            # Remove fully resolved sentences
+            resolved_sentences = [s for s in self.knowledge if len(s.cells) == s.count or s.count == 0]
+            for sentence in resolved_sentences:
+                if sentence.count == 0:
+                    for safe in sentence.cells:
+                        self.mark_safe(safe)
+                elif len(sentence.cells) == sentence.count:
+                    for mine in sentence.cells:
+                        self.mark_mine(mine)
+
+            # Filter out empty sentences
             self.knowledge = [s for s in self.knowledge if s.cells]
 
+            # Infer new sentences from subsets and overlapping sentences
             knowledge_size = len(self.knowledge)
             for i in range(knowledge_size):
                 for j in range(i + 1, knowledge_size):
@@ -227,13 +248,27 @@ class MinesweeperAI():
                         if s1.cells < s2.cells:
                             new_cells = s2.cells - s1.cells
                             new_count = s2.count - s1.count
-                            new_sentence = Sentence(new_cells, new_count)
-                            if new_sentence not in self.knowledge and new_cells:
-                                self.knowledge.append(new_sentence)
-                                knowledge_changed = True
+                        elif s2.cells < s1.cells:
+                            new_cells = s1.cells - s2.cells
+                            new_count = s1.count - s2.count
+                        else:
+                            continue  # Skip if no subset relationship
+
+                        new_sentence = Sentence(new_cells, new_count)
+                        if new_sentence not in self.knowledge and new_cells:
+                            self.knowledge.append(new_sentence)
+                            knowledge_changed = True
+                            print("New Inferred Knowledge: ", new_sentence, "from", s1, "and", s2)
 
             if not knowledge_changed:
                 break
+
+    # Final print statements to summarize the AI's current knowledge
+    print("Current AI Knowledge Base length:", len(self.knowledge))
+    print("Known Mines:", self.mines)
+    print("Safe Moves Remaining:", self.safes - self.moves_made)
+    print("====================================================")
+
 
     def make_safe_move(self):
         """
