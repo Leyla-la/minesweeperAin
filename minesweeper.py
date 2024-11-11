@@ -183,37 +183,57 @@ class MinesweeperAI():
         self.moves_made.add(cell)
         self.mark_safe(cell)
 
-        undeterminedCells = []
-        countMines = 0
-        for i in range(cell[0] - 1, cell[0] + 2):
-             for j in range(cell[1] - 1, cell[1] +2):
-                if (i, j) in self.mines:
-                    countMines +=1
-                if 0 <= i < self.height and 0 <= j < self.width and (i,j) not in self.safes and (i, j) not in self.mines:
-                    undeterminedCells.append(i,j)
+        # Calculate neighboring cells
+        neighbors = {
+            (i, j)
+            for i in range(max(0, cell[0]-1), min(self.height, cell[0]+2))
+            for j in range(max(0, cell[1]-1), min(self.width, cell[1]+2))
+            if (i, j) != cell
+        }
 
-        newSentence = Sentence(undeterminedCells, count- countMines)
+        # Identify already known mines and adjust count
+        mine_neighbors = neighbors & self.mines
+        count -= len(mine_neighbors)
+        unknown_cells = neighbors - self.safes - self.mines
 
-        self.knowdge.append(newSentence)
+        if unknown_cells:
+            self.knowledge.append(Sentence(unknown_cells, count))
 
-        for sentence in self.knowdge:
-            if sentence.known_mines():
-                for cell in sentence.known_mines().copy():
-                    self.mark_mine(cell)
-            if sentence.known_safes():
-                for cell in sentence.known_safes().copy():
-                    self.mark_safe(cell)
+        while True:
+            knowledge_changed = False
 
-        for sentence in self.knowledge:
-            if newSentence.cells.issubset(sentence.cells) and self.count > 0 and newSentence.count > 0 and newSentence != sentence:
-                newSubset = sentence.cells.difference(newSentence.cells)
-                newSentenceSubset = Sentence(list(newSubset), sentence.count - newSentence.count)
-                self.knowledge.append(newSentenceSubset)
+            for sentence in self.knowledge:
+                new_mines = sentence.known_mines() - self.mines
+                new_safes = sentence.known_safes() - self.safes
 
+                if new_mines:
+                    knowledge_changed = True
+                    for mine in new_mines:
+                        self.mark_mine(mine)
 
+                if new_safes:
+                    knowledge_changed = True
+                    for safe in new_safes:
+                        self.mark_safe(safe)
 
+            # Clean up empty sentences
+            self.knowledge = [s for s in self.knowledge if s.cells]
 
+            knowledge_size = len(self.knowledge)
+            for i in range(knowledge_size):
+                for j in range(i + 1, knowledge_size):
+                    s1, s2 = self.knowledge[i], self.knowledge[j]
+                    if s1.cells and s2.cells:
+                        if s1.cells < s2.cells:
+                            new_cells = s2.cells - s1.cells
+                            new_count = s2.count - s1.count
+                            new_sentence = Sentence(new_cells, new_count)
+                            if new_sentence not in self.knowledge and new_cells:
+                                self.knowledge.append(new_sentence)
+                                knowledge_changed = True
 
+            if not knowledge_changed:
+                break
 
     def make_safe_move(self):
         """
