@@ -185,7 +185,7 @@ class MinesweeperAI():
 
         # Calculate neighboring cells
         neighbors = {
-            (i, j) 
+            (i, j)
             for i in range(max(0, cell[0]-1), min(self.height, cell[0]+2))
             for j in range(max(0, cell[1]-1), min(self.width, cell[1]+2))
             if (i, j) != cell
@@ -205,12 +205,12 @@ class MinesweeperAI():
             for sentence in self.knowledge:
                 new_mines = sentence.known_mines() - self.mines
                 new_safes = sentence.known_safes() - self.safes
-                
+
                 if new_mines:
                     knowledge_changed = True
                     for mine in new_mines:
                         self.mark_mine(mine)
-                
+
                 if new_safes:
                     knowledge_changed = True
                     for safe in new_safes:
@@ -254,8 +254,8 @@ class MinesweeperAI():
             2) are not known to be mines
         """
         remaining = {
-            (i, j) 
-            for i in range(self.height) 
+            (i, j)
+            for i in range(self.height)
             for j in range(self.width)
         } - self.moves_made - self.mines
 
@@ -264,7 +264,7 @@ class MinesweeperAI():
 
         remaining_mines = 8 - len(self.mines)
         base_probability = remaining_mines / len(remaining)
-        
+
         cell_risks = {}
         for cell in remaining:
             max_risk = base_probability
@@ -276,5 +276,5 @@ class MinesweeperAI():
 
         min_risk = min(cell_risks.values())
         safest_moves = [cell for cell, risk in cell_risks.items() if risk == min_risk]
-        
+
         return random.choice(safest_moves)
