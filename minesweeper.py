@@ -317,51 +317,43 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-        # dictionary to hold possible moves and their mine probability:
-        moves = {}
-        MINES = 8
+            remaining = {
+            (i, j)
+            for i in range(self.height)
+            for j in range(self.width)
+        } - self.moves_made - self.mines
 
-        # Calculate basic probability of any cell being a mine with no KB:
-        num_mines_left = MINES - len(self.mines)
-        spaces_left = (self.height * self.width) - (len(self.moves_made) + len(self.mines))
-
-        # If no spaces are left that are acceptable moves, return no move possible
-        if spaces_left == 0:
+        # If there are no remaining moves, return None
+        if not remaining:
+            print("No remaining moves are possible.")
             return None
 
-        basic_prob = num_mines_left / spaces_left
+        # Calculate basic probability of a remaining cell being a mine
+        remaining_mines = 8 - len(self.mines)
+        base_probability = remaining_mines / len(remaining)
+        print("Basic mine probability for each cell without knowledge:", base_probability)
 
-        # Get list of all possible moves that are not mines
-        for i in range(0, self.height):
-            for j in range(0, self.width):
-                if (i, j) not in self.moves_made and (i, j) not in self.mines:
-                    moves[(i, j)] = basic_prob
-
-        # If no moves have been made (nothing in KB) then any is a good option:
-        if moves and not self.knowledge:
-            move = random.choice(list(moves.keys()))
-            print('AI Selecting Random Move With Basic Probability: ', move)
-            return move
-
-        # Otherwise can potentially improve random choice using KB:
-        elif moves:
+        # Track risk (mine probability) for each remaining cell
+        cell_risks = {}
+        for cell in remaining:
+            # Start with the base probability
+            max_risk = base_probability
+            # Adjust probability if we have knowledge about neighboring mines
             for sentence in self.knowledge:
-                num_cells = len(sentence.cells)
-                count = sentence.count
-                mine_prob = count / num_cells
-                # If mine probabilty of each cell is worse than listed, update it:
-                for cell in sentence.cells:
-                    if moves[cell] < mine_prob:
-                        moves[cell] = mine_prob
+                if cell in sentence.cells:
+                    cell_risk = sentence.count / len(sentence.cells)
+                    max_risk = max(max_risk, cell_risk)
+            cell_risks[cell] = max_risk
 
-            # Get and return random move with lowest mine probability:
-            move_list = [[x, moves[x]] for x in moves]
-            move_list.sort(key=lambda x: x[1])
-            best_prob = move_list[0][1]
+        # Find the minimum risk level among all possible moves
+        min_risk = min(cell_risks.values())
+        safest_moves = [cell for cell, risk in cell_risks.items() if risk == min_risk]
 
-            best_moves = [x for x in move_list if x[1] == best_prob]
-            move = random.choice(best_moves)[0]
-            print('AI Selecting Random Move with lowest mine probability using KB: ', move)
+        # Choose a random move from those with the lowest mine probability
+        move = random.choice(safest_moves)
+        if not self.knowledge:
+            print("AI selecting random move with basic probability:", move)
+        else:
+            print("AI selecting random move with lowest mine probability using Knowledge Base:", move)
 
-            # Return a random choice from the best moves list
-            return move
+        return move
