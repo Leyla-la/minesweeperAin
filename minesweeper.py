@@ -102,7 +102,14 @@ class Sentence():
         """
         Returns the set of all cells in self.cells known to be mines.
         """
-        return self.cells if len(self.cells) == self.count != 0 else set()
+
+        # If count of mines is equal to number of cells (and > 0), all cells are mines:
+        if len(self.cells) == self.count and self.count != 0:
+            print('Mine Identified! - ', self.cells)
+            return self.cells
+        else:
+            return set()
+
 
     def known_safes(self):
         """
@@ -174,21 +181,24 @@ class MinesweeperAI():
             1) mark the cell as a move that has been made
             2) mark the cell as safe
             3) add a new sentence to the AI's knowledge base
-               based on the value of `cell` and `count`
+            based on the value of `cell` and `count`
             4) mark any additional cells as safe or as mines
-               if it can be concluded based on the AI's knowledge base
+            if it can be concluded based on the AI's knowledge base
             5) add any new sentences to the AI's knowledge base
-               if they can be inferred from existing knowledge
+            if they can be inferred from existing knowledge
         """
 
-        # Mark the cell as a move that has been made, and mark as safe:
+        # 1) mark the cell as a move that has been made
         self.moves_made.add(cell)
+
+        # 2) mark the cell as safe
         self.mark_safe(cell)
 
         # Create set to store undecided cells for KB:
         new_sentence_cells = set()
 
-        # Loop over all cells within one row and column
+        # 3) Loop over all cells within one row and column
+        #    and add them to the knowledge base sentence
         for i in range(cell[0] - 1, cell[0] + 2):
             for j in range(cell[1] - 1, cell[1] + 2):
 
@@ -209,11 +219,11 @@ class MinesweeperAI():
                 if 0 <= i < self.height and 0 <= j < self.width:
                     new_sentence_cells.add((i, j))
 
-        # Add the new sentence to the AI's Knowledge Base:
+        # 3) Add the new sentence to the AI's Knowledge Base:
         print(f'Move on cell: {cell} has added sentence to knowledge {new_sentence_cells} = {count}' )
         self.knowledge.append(Sentence(new_sentence_cells, count))
 
-        # Iteratively mark guaranteed mines and safes, and infer new knowledge:
+        # 4) Iteratively mark guaranteed mines and safes, and infer new knowledge:
         knowledge_changed = True
 
         while knowledge_changed:
@@ -242,7 +252,7 @@ class MinesweeperAI():
 
             self.knowledge[:] = [x for x in self.knowledge if x != empty]
 
-            # Try to infer new sentences from the current ones:
+            # 5) Try to infer new sentences from the current ones:
             for sentence_1 in self.knowledge:
                 for sentence_2 in self.knowledge:
 
@@ -264,15 +274,15 @@ class MinesweeperAI():
                         # Add to knowledge if not already in KB:
                         if new_sentence not in self.knowledge:
                             knowledge_changed = True
-                            print('New Inferred Knowledge: ', new_sentence, 'from', sentence_1, ' and ', sentence_2)
+                            print('New Inferred Knowledge: ', new_sentence,
+                                  'from', sentence_1, ' and ', sentence_2)
                             self.knowledge.append(new_sentence)
 
         # Print out AI current knowledge to terminal:
-        print('Current AI KB length: ', len(self.knowledge))
+        print('Current AI Knowledge Base length: ', len(self.knowledge))
         print('Known Mines: ', self.mines)
         print('Safe Moves Remaining: ', self.safes - self.moves_made)
         print('====================================================')
-
 
 
     def make_safe_move(self):
@@ -283,6 +293,7 @@ class MinesweeperAI():
         """
         safe_moves = self.safes - self.moves_made
         if safe_moves:
+            print('Making a Safe Move! Safe moves available: ', len(safe_moves))
             return next(iter(safe_moves))
         return None
 
@@ -293,28 +304,44 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
+        # Find all cells that are possible moves (not yet chosen and not mines)
         remaining = {
             (i, j)
             for i in range(self.height)
             for j in range(self.width)
         } - self.moves_made - self.mines
 
+        # If there are no remaining moves, return None
         if not remaining:
+            print("No remaining moves are possible.")
             return None
 
+        # Calculate basic probability of a remaining cell being a mine
         remaining_mines = 8 - len(self.mines)
         base_probability = remaining_mines / len(remaining)
+        print("Basic mine probability for each cell without knowledge:", base_probability)
 
+        # Track risk (mine probability) for each remaining cell
         cell_risks = {}
         for cell in remaining:
+            # Start with the base probability
             max_risk = base_probability
+            # Adjust probability if we have knowledge about neighboring mines
             for sentence in self.knowledge:
                 if cell in sentence.cells:
                     cell_risk = sentence.count / len(sentence.cells)
                     max_risk = max(max_risk, cell_risk)
             cell_risks[cell] = max_risk
 
+        # Find the minimum risk level among all possible moves
         min_risk = min(cell_risks.values())
         safest_moves = [cell for cell, risk in cell_risks.items() if risk == min_risk]
 
-        return random.choice(safest_moves)
+        # Choose a random move from those with the lowest mine probability
+        move = random.choice(safest_moves)
+        if not self.knowledge:
+            print("AI selecting random move with basic probability:", move)
+        else:
+            print("AI selecting random move with lowest mine probability using Knowledge Base:", move)
+
+        return move
